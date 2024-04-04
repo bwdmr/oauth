@@ -4,20 +4,39 @@
 import PackageDescription
 
 let package = Package(
-    name: "OAuth",
+    name: "oauth",
+    platforms: [ 
+      .macOS(.v13),
+      .iOS(.v16),
+      .tvOS(.v16),
+      .watchOS(.v9),
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "OAuth",
-            targets: ["OAuth"]),
+        .library( name: "OAuth", targets: ["OAuth"]),
+    ],
+    dependencies: [
+      .package(url: "https://github.com/vapor/vapor.git", from: "4.92.4"),
+      .package(url: "https://github.com/bwdmr/oauth-kit", branch: "main")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "OAuth"),
-        .testTarget(
-            name: "OAuthTests",
-            dependencies: ["OAuth"]),
+          name: "OAuth",
+          dependencies: [
+            .product(name: "OAuthKit", package: "oauth-kit"),
+            .product(name: "Vapor", package: "vapor")
+          ],
+          swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+        ),
+        .testTarget( 
+          name: "OAuthTests",
+          dependencies: [
+            .target(name: "OAuth"),
+            .product(name: "XCTVapor", package: "vapor")
+          ],
+          swiftSettings: [.enableExperimentalFeature("StrictConurrency")]
+        ),
     ]
 )
+
+
+
