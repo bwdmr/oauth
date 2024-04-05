@@ -4,7 +4,6 @@ import NIOConcurrencyHelpers
 
 
 
-
 public struct GoogleAccessToken: OAuthToken, Authenticatable {
   enum CodingKeys: String, CodingKey {
     case accessToken = "access_token"
@@ -63,7 +62,6 @@ public struct GoogleAccessToken: OAuthToken, Authenticatable {
 
 
 
-
 struct OAuthRouteCollection: RouteCollection {
   let service: GoogleService
   let redirectURI: RedirectURIClaim
@@ -75,14 +73,24 @@ struct OAuthRouteCollection: RouteCollection {
   
   func boot(routes: Vapor.RoutesBuilder) throws {
     
-    routes.get(redirectURI.value.pathComponents) { req -> Response in
-      let code = try req.query.decode(CodeClaim.self)
-      let accessURL = try service.accessURL(code: code.value)
+    let redirectURIString = redirectURI.value
+    let redirecturiURL = URI(string: redirectURIString)
+    let path = redirecturiURL.path
+    
+    routes.get(path.pathComponents) { req -> Response in
+      let code: String = try req.query.get(at: CodeClaim.key.stringValue)
+      let accessURL = try service.accessURL(code: code)
       let accessURI = URI(string: accessURL.absoluteString)
       let response = try await req.application.client.post(accessURI)
+      
+      guard var body = response.body else { throw Abort(.internalServerError) }
+      let length = body.readableBytes
+      guard let data = body.readData(length: length) else { throw Abort(.internalServerError) }
+      let string = String(data: data, encoding: .utf8)
+      print(string)
+      
       let token = try response.content.decode(GoogleAccessToken.self)
       req.auth.login(token)
-      print("test")
       return Response(status: .ok)
     }
   }
@@ -91,10 +99,8 @@ struct OAuthRouteCollection: RouteCollection {
 
 
 public extension Request.OAuth {
-  var google: Google {
-    .init(_oauth: self)
-  }
-  
+  var google: Google { .init(_oauth: self) }
+ 
   
   struct Google: Sendable {
     public let _oauth: Request.OAuth

@@ -2,7 +2,6 @@ import OAuthKit
 import Vapor
 import NIOConcurrencyHelpers
 
-@_exported import OAuthKit
 
 public extension Application {
   var oauth: OAuth {
