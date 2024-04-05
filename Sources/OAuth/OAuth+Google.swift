@@ -74,9 +74,6 @@ struct OAuthRouteCollection: RouteCollection {
   }
   
   func boot(routes: Vapor.RoutesBuilder) throws {
-    routes.get(redirectURI.value.pathComponents) { req -> Response in
-      return Response(status: .ok)
-    }
     
     routes.get(redirectURI.value.pathComponents) { req -> Response in
       let code = try req.query.decode(CodeClaim.self)
