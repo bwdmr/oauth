@@ -82,6 +82,7 @@ struct OAuthRouteCollection: RouteCollection {
       let response = try await req.application.client.post(accessURI)
       let token = try response.content.decode(GoogleAccessToken.self)
       req.auth.login(token)
+      print("test")
       return Response(status: .ok)
     }
   }
