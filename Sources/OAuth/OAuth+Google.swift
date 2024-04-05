@@ -193,10 +193,8 @@ public extension Application.OAuth {
       }
     }
     
-    public func make(_ id: OAuthIdentifier, service: GoogleService) async throws {
-      
-      
-      
+    public func make(service: GoogleService) async throws {
+      guard let id = service.oauthIdentifier else { throw Abort(.internalServerError) }
       self.service = service
       try await self._oauth._application.oauth.services.add(service, for: id)
       try self._oauth._application.register(collection: OAuthRouteCollection(service))
