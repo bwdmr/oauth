@@ -101,7 +101,7 @@ public extension Request.OAuth {
   struct Google: Sendable {
     public let _oauth: Request.OAuth
     
-    public func verify() async throws -> GoogleService.AccessToken {
+    public func verify() async throws -> GoogleAccessToken {
       guard let token = self._oauth._request.headers.bearerAuthorization?.token else {
         self._oauth._request.logger.error("Request is missing OAuth bearer token.")
         throw Abort(.unauthorized)
