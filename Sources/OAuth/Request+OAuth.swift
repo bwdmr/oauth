@@ -16,7 +16,7 @@ public extension Request {
     public func redirect<Service>(_ service: Service)
     async throws -> Response where Service: OAuthServiceable
     { 
-      let url = try service.authorizationURL()
+      let url = try service.authenticationURL()
       return self._request.redirect(to: url.absoluteString)
     }
     

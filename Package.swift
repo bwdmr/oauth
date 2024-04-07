@@ -16,7 +16,7 @@ let package = Package(
     ],
     dependencies: [
       .package(url: "https://github.com/vapor/vapor.git", from: "4.92.4"),
-      .package(url: "https://github.com/bwdmr/oauth-kit", branch: "main")
+      .package(url: "https://github.com/bwdmr/oauth-kit", branch: "test")
     ],
     targets: [
         .target(

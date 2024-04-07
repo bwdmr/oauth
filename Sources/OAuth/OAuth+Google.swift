@@ -3,64 +3,7 @@ import Vapor
 import NIOConcurrencyHelpers
 
 
-
-public struct GoogleAccessToken: OAuthToken, Authenticatable {
-  enum CodingKeys: String, CodingKey {
-    case accessToken = "access_token"
-    case expiresIn = "expires_in"
-    case refreshToken = "refresh_token"
-    case scope = "scope"
-    case tokenType = "token_type"
-  }
-  
-  public let accessToken: AccessTokenClaim
-  
-  public let expiresIn: ExpiresInClaim
-  
-  public let refreshToken: RefreshTokenClaim?
-  
-  public let scope: ScopeClaim
-  
-  public let tokenType: TokenTypeClaim
-  
-  public init(
-    accessToken: AccessTokenClaim,
-    expiresIn: ExpiresInClaim,
-    refreshToken: RefreshTokenClaim? = nil,
-    scope: ScopeClaim,
-    tokenType: TokenTypeClaim = "Bearer"
-  ) {
-    self.accessToken = accessToken
-    self.expiresIn = expiresIn
-    self.refreshToken = refreshToken
-    self.scope = scope
-    self.tokenType = tokenType
-  }
-  
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.accessToken = try container.decode(AccessTokenClaim.self, forKey: .accessToken)
-    self.expiresIn = try container.decode(ExpiresInClaim.self, forKey: .expiresIn)
-    self.refreshToken = try container.decodeIfPresent(RefreshTokenClaim.self, forKey: .refreshToken)
-    self.scope = try container.decode(ScopeClaim.self, forKey: .scope)
-    self.tokenType = try container.decode(TokenTypeClaim.self, forKey: .tokenType)
-  }
-  
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(accessToken, forKey: .accessToken)
-    try container.encode(expiresIn, forKey: .expiresIn)
-    try container.encodeIfPresent(refreshToken, forKey: .refreshToken)
-    try container.encode(scope, forKey: .scope)
-    try container.encode(tokenType, forKey: .tokenType)
-  }
-  
-  public func verify() async throws {
-    try self.expiresIn.verifyNotExpired()
-  }
-}
-
-
+extension GoogleService.AccessToken: Authenticatable { }
 
 struct OAuthRouteCollection: RouteCollection {
   let service: GoogleService
@@ -72,24 +15,17 @@ struct OAuthRouteCollection: RouteCollection {
   }
   
   func boot(routes: Vapor.RoutesBuilder) throws {
-    
     let redirectURIString = redirectURI.value
     let redirecturiURL = URI(string: redirectURIString)
     let path = redirecturiURL.path
     
     routes.get(path.pathComponents) { req -> Response in
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
-      let accessURL = try service.accessURL(code: code)
-      let accessURI = URI(string: accessURL.absoluteString)
-      let response = try await req.application.client.post(accessURI)
+      let tokenURL = try service.tokenURL(code: code)
+      let tokenURI = URI(string: tokenURL.absoluteString)
+      let response = try await req.application.client.post(tokenURI)
       
-      guard var body = response.body else { throw Abort(.internalServerError) }
-      let length = body.readableBytes
-      guard let data = body.readData(length: length) else { throw Abort(.internalServerError) }
-      let string = String(data: data, encoding: .utf8)
-      print(string)
-      
-      let token = try response.content.decode(GoogleAccessToken.self)
+      let token = try response.content.decode(GoogleService.AccessToken.self)
       req.auth.login(token)
       return Response(status: .ok)
     }
@@ -105,7 +41,7 @@ public extension Request.OAuth {
   struct Google: Sendable {
     public let _oauth: Request.OAuth
     
-    public func verify() async throws -> GoogleAccessToken {
+    public func verify() async throws -> GoogleService.AccessToken {
       guard let token = self._oauth._request.headers.bearerAuthorization?.token else {
         self._oauth._request.logger.error("Request is missing OAuth bearer token.")
         throw Abort(.unauthorized)
