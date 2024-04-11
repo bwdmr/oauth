@@ -4,8 +4,7 @@ import NIOConcurrencyHelpers
 
 
 
-public protocol OAuthHeadToken: OAuthToken, Content, Authenticatable {}
-
+public protocol OAuthHeadToken: GoogleToken, Content, Authenticatable {}
 
 
 struct OAuthRouteCollection: RouteCollection {
