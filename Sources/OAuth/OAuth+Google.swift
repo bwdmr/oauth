@@ -3,17 +3,27 @@ import Vapor
 import NIOConcurrencyHelpers
 
 
-extension GoogleService.AccessToken: Authenticatable { }
+
+public protocol OAuthHeadToken: OAuthToken, Content, Authenticatable {}
+
+
 
 struct OAuthRouteCollection: RouteCollection {
+  let token: any OAuthHeadToken
   let service: GoogleService
   let redirectURI: RedirectURIClaim
   
-  init(_ service: GoogleService) {
+  init(_ service: GoogleService, token: any OAuthHeadToken) async {
     self.service = service
-    self.redirectURI = service.redirectURI
+    self.redirectURI = await service.redirectURI
+    self.token = token
   }
   
+  public func decodeFromResponse<Token>(_ content: ContentContainer, _ as: Token)
+  throws -> Token where Token: Content {
+    return try content.decode(Token.self)
+  }
+
   func boot(routes: Vapor.RoutesBuilder) throws {
     let redirectURIString = redirectURI.value
     let redirecturiURL = URI(string: redirectURIString)
@@ -21,12 +31,20 @@ struct OAuthRouteCollection: RouteCollection {
     
     routes.get(path.pathComponents) { req -> Response in
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
-      let tokenURL = try service.tokenURL(code: code)
-      let tokenURI = URI(string: tokenURL.absoluteString)
-      let response = try await req.application.client.post(tokenURI)
       
-      let token = try response.content.decode(GoogleService.AccessToken.self)
-      req.auth.login(token)
+      let tokenURL = try await service.tokenURL(code: code)
+      let tokenURI = URI(string: tokenURL.absoluteString)
+      let tokenResponse = try await req.application.client.post(tokenURI)
+      let accessToken = try self.decodeFromResponse(tokenResponse.content, token)
+      
+      let infoURL = token.endpoint
+      let infoURI = URI(string: infoURL.absoluteString)
+      let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
+        try req.content.encode(accessToken) })
+      var infoToken = try self.decodeFromResponse(infoResponse.content, token)
+      try await accessToken.mergeable(&infoToken)
+      req.auth.login(infoToken)
+      
       return Response(status: .ok)
     }
   }
@@ -36,26 +54,18 @@ struct OAuthRouteCollection: RouteCollection {
 
 public extension Request.OAuth {
   var google: Google { .init(_oauth: self) }
- 
   
   struct Google: Sendable {
     public let _oauth: Request.OAuth
     
-    public func verify() async throws -> GoogleService.AccessToken {
-      guard let token = self._oauth._request.headers.bearerAuthorization?.token else {
-        self._oauth._request.logger.error("Request is missing OAuth bearer token.")
-        throw Abort(.unauthorized)
-      }
-      return try await self._oauth.verify(token)
-    }
-    
     public func redirect() async throws -> Response {
-      guard let service = self._oauth._request.application.oauth.google.service else { throw Abort(.internalServerError) }
+      guard let service = self._oauth._request.application.oauth.google.service else {
+        throw Abort(.internalServerError) }
+      
       return try await self._oauth.redirect(service)
     }
   }
 }
-
 
 
 
@@ -65,8 +75,6 @@ public extension Application.OAuth {
   }
   
   struct Google: Sendable {
-    public let id: OAuthIdentifier = OAuthIdentifier("google")
-    
     public let _oauth: Application.OAuth
     
     private struct Key: StorageKey, LockKey {
@@ -133,11 +141,18 @@ public extension Application.OAuth {
       }
     }
     
-    public func make(service: GoogleService) async throws {
-      guard let id = service.oauthIdentifier else { throw Abort(.internalServerError) }
+    ///
+    public func make(service: GoogleService, token: [OAuthToken], head: String) async throws {
+      guard let headToken = token.first(where: {
+        $0.scope.value.contains(head) && ($0.self as Any) is Authenticatable.Type
+      }) else { throw Abort(.internalServerError) }
+      
       self.service = service
-      try await self._oauth._application.oauth.services.add(service, for: id)
-      try self._oauth._application.register(collection: OAuthRouteCollection(service))
+      try await self._oauth._application.oauth
+        .services.register(service, token, head: head)
+      
+      try await self._oauth._application.register(
+        collection: OAuthRouteCollection(service, token: headToken as! (any OAuthHeadToken)))
     }
   }
 }

@@ -2,16 +2,16 @@ import OAuthKit
 import Vapor
 
 
-public extension OAuthToken where Self: Authenticatable {
+
+public extension OAuthHeadToken where Self: Authenticatable {
   static func authenticator() -> AsyncAuthenticator {
-    OAuthTokenAuthenticator<Self>()
+    OAuthAccessAuthenticator<Self>()
   }
 }
 
 
-private struct OAuthTokenAuthenticator<Token>: OAuthAuthenticator
-where Token: OAuthToken & Authenticatable {
-  
+private struct OAuthAccessAuthenticator<Token>: OAuthAuthenticator
+where Token: OAuthHeadToken & Authenticatable {
   func authenticate(token: Token, for request: Request) async throws {
     request.auth.login(token)
   }
@@ -19,7 +19,7 @@ where Token: OAuthToken & Authenticatable {
 
 
 public protocol OAuthAuthenticator: AsyncBearerAuthenticator {
-  associatedtype Token: OAuthToken
+  associatedtype Token: OAuthHeadToken
   func authenticate(token: Token, for request: Request) async throws
 }
 

@@ -31,6 +31,7 @@ public extension Application {
             box.services
           }
         }
+        
         set {
           self.sendableBox.withLockedValue { box in
             box.services = newValue
