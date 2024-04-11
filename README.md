@@ -17,29 +17,21 @@ A layer between [oauth-kit](https://github.com/bwdmr/oauth-kit) and [vapor](http
 
 ```swift
 struct EmailAccessToken: OAuthToken, Content, Authenticatable {
+
+struct EmailAccessToken: OAuthGoogleToken {
   var endpoint: URL
   
-  public var accessToken: AccessTokenClaim?
+  var accessToken: AccessTokenClaim?
   
-  public var email: EmailClaim?
+  var email: EmailClaim?
   
-  public var expiresIn: ExpiresInClaim?
+  var expiresIn: ExpiresInClaim?
   
-  public var refreshToken: RefreshTokenClaim?
+  var refreshToken: RefreshTokenClaim?
   
-  public var scope: ScopeClaim
+  var scope: ScopeClaim
   
-  public var tokenType: TokenTypeClaim?
-  
-  public init(_ endpoint: URL ) {
-    self.endpoint = endpoint
-  }
-  
-  func verify() async throws {
-    if let expiresIn = self.expiresIn {
-      try expiresIn.verifyNotExpired() }
-    throw OAuthError.claimVerificationFailure(failedClaim: expiresIn, reason: "is nil")
-  }
+  var tokenType: TokenTypeClaim?
 }
 ```
 
