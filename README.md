@@ -14,10 +14,7 @@ A layer between [oauth-kit](https://github.com/bwdmr/oauth-kit) and [vapor](http
   - and the dedicated endpoint would be: `https://www.googleapis.com/oauth2/v3/userinfo`
 
 
-
 ```swift
-struct EmailAccessToken: OAuthToken, Content, Authenticatable {
-
 struct EmailAccessToken: OAuthGoogleToken {
   var endpoint: URL
   
@@ -36,7 +33,7 @@ struct EmailAccessToken: OAuthGoogleToken {
 ```
 
 
-2. Instantiate your serive, passing your custom AccessToken along.
+2. Instantiate your service, passing your custom AccessToken along.
 ```swift
 let emailendpointURL = URL(string: "https://www.googleapis.com/oauth2/v3/userinfo")
 let accessToken = EmailAccessToken(emailendpointURL)
