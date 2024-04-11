@@ -12,6 +12,8 @@ public extension Request {
   struct OAuth: Sendable {
     public let _request: Request
     
+    
+    ///
     @discardableResult
     public func redirect<Service>(_ service: Service)
     async throws -> Response where Service: OAuthServiceable
@@ -19,17 +21,17 @@ public extension Request {
       let url = try service.authenticationURL()
       return self._request.redirect(to: url.absoluteString)
     }
-    
+   
     
     ///
     @discardableResult
-    public func verify<Token>(_ token: Token, as _: Token.Type = Token.self)
+    public func verify<Token>(as _: Token.Type = Token.self)
     async throws -> Token where Token: OAuthToken
     {
       guard let token = self._request.headers.bearerAuthorization?.token else {
         self._request.logger.error("Request is missing OAuth bearer header")
-        throw Abort(.unauthorized)
-      }
+        throw Abort(.unauthorized) }
+      
       return try await self.verify(token, as: Token.self)
     }
     
