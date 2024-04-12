@@ -32,8 +32,11 @@ struct OAuthRouteCollection: RouteCollection {
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
       
       let tokenURL = try await service.tokenURL(code: code)
-      let tokenURI = URI(string: tokenURL.absoluteString)
-      let tokenResponse = try await req.application.client.post(tokenURI)
+      let _tokenURL = tokenURL.0
+      let tokenURI = URI(string: _tokenURL.absoluteString)
+      let tokenResponse = try await req.application.client.post(tokenURI, beforeSend: { req in
+        try req.content.encode(tokenURL.1) })
+      
       let accessToken = try self.decodeFromResponse(tokenResponse.content, token)
       
       let infoURL = token.endpoint
