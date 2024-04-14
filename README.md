@@ -36,23 +36,26 @@ struct EmailAccessToken: OAuthGoogleToken {
 2. Instantiate your service, passing your custom AccessToken along.
 ```swift
 let emailendpointURL = URL(string: "https://www.googleapis.com/oauth2/v3/userinfo")
-let accessToken = EmailAccessToken(emailendpointURL)
 
 let authenticationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
 let tokenEndpoint = "https://oauth2.googleapis.com/token"
 let clientID = "CLIENT_ID"
 let clientSecret = "CLIENT_SECRET"
 let redirectURI = "REDIRECT_URI"
-let state = "STATE"
+let scopeClaim = ScopeClaim(stringLiteral: "https://www.googleapis.com/auth/userinfo.email")
+let scope = "https://www.googleapis.com/auth/userinfo.email"
+
+let accessToken = EmailAccessToken(endpoint: emailendpointURL, scope: scopeClaim)
+
 let oauthgoogle = GoogleService(
   authenticationEndpoint: authenticationEndpoint,
   tokenEndpoint: tokenEndpoint,
   clientID: clientID,
   clientSecret: clientSecret,
   redirectURI: redirectURI,
-  state: state)
+  scope: scope)
 
-try await app.oauth.google.use(service, accessToken, head: "https://www.googleapis.com/auth/userinfo.email")
+try await app.oauth.google.make(service: oauthgoogle, token: [accessToken], head: scope)
 ```
 
 
