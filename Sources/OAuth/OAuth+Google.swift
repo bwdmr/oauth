@@ -4,51 +4,73 @@ import NIOConcurrencyHelpers
 
 
 
-public protocol OAuthHeadToken: GoogleToken, Content, Authenticatable {}
+public protocol OAuthHeadToken: OAuthToken, Content, Authenticatable {}
 
 
-struct OAuthRouteCollection: RouteCollection {
-  let token: any OAuthHeadToken
-  let service: GoogleService
-  let redirectURI: RedirectURIClaim
+public protocol OAuthRouteCollection<T, U>: RouteCollection where T: OAuthHeadToken, U: OAuthServiceable {
+  associatedtype T
+  associatedtype U
   
-  init(_ service: GoogleService, token: any OAuthHeadToken) async {
-    self.service = service
-    self.redirectURI = await service.redirectURI
-    self.token = token
-  }
+  var service: U { get set }
   
-  public func decodeFromResponse<Token>(_ content: ContentContainer, _ as: Token)
-  throws -> Token where Token: Content {
-    return try content.decode(Token.self)
-  }
+  init(_ service: U)
+  
+  func boot(routes: RoutesBuilder) async throws
+}
 
-  func boot(routes: Vapor.RoutesBuilder) throws {
-    let redirectURIString = redirectURI.value
-    let redirecturiURL = URI(string: redirectURIString)
-    let path = redirecturiURL.path
+
+extension OAuthRouteCollection {
+  
+  public func boot(routes: RoutesBuilder) async throws {
+    let pathString = await self.service.redirectURI.value
     
-    routes.get(path.pathComponents) { req -> Response in
+    routes.get(pathString.pathComponents) { req -> Response in
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
       
       let tokenURL = try await service.tokenURL(code: code)
       let _tokenURL = tokenURL.0
+      let _tokenData = tokenURL.1
       let tokenURI = URI(string: _tokenURL.absoluteString)
       let tokenResponse = try await req.application.client.post(tokenURI, beforeSend: { req in
-        try req.content.encode(tokenURL.1) })
+
+        req.headers.add(name: "Content-Type", value: "application/x-www-form-urlencoded")
+        let byteBuffer = ByteBuffer(bytes: _tokenData)
+        req.body = byteBuffer
+      })
       
-      let accessToken = try self.decodeFromResponse(tokenResponse.content, token)
+      let accessToken = try tokenResponse.content.decode(T.self)
       
-      let infoURL = token.endpoint
+      guard let head = await service.head else { throw Abort(.notFound) }
+      let infoURL = head.endpoint
       let infoURI = URI(string: infoURL.absoluteString)
       let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
         try req.content.encode(accessToken) })
-      var infoToken = try self.decodeFromResponse(infoResponse.content, token)
+      var infoToken = try infoResponse.content.decode(T.self)
       try await accessToken.mergeable(&infoToken)
+      
       req.auth.login(infoToken)
       
       return Response(status: .ok)
     }
+  }
+}
+
+
+
+extension OAuthService {
+  
+  @discardableResult
+  func register(
+    app: Application, 
+    _ service: OAuthServiceable,
+    _ use: [OAuthToken],
+    head: String,
+    router: any OAuthRouteCollection
+  ) async throws -> Self {
+    try await self.register(service, use, head: head)
+    try app.register(collection: router)
+    
+    return self
   }
 }
 
@@ -144,17 +166,9 @@ public extension Application.OAuth {
     }
     
     ///
-    public func make(service: GoogleService, token: [OAuthToken], head: String) async throws {
-      guard let headToken = token.first(where: {
-        $0.scope.value.contains(head) && ($0.self as Any) is Authenticatable.Type
-      }) else { throw Abort(.internalServerError) }
-      
-      self.service = service
+    public func make(service: GoogleService, token: [OAuthToken], head: String, router: any OAuthRouteCollection) async throws {
       try await self._oauth._application.oauth
-        .services.register(service, token, head: head)
-      
-      try await self._oauth._application.register(
-        collection: OAuthRouteCollection(service, token: headToken as! (any OAuthHeadToken)))
+        .services.register(app: self._oauth._application, service, token, head: head, router: router)
     }
   }
 }
