@@ -11,15 +11,19 @@ public protocol OAuthRouteCollection<T, U>: RouteCollection where T: OAuthHeadTo
   associatedtype T
   associatedtype U
   
-  var service: U { get set }
-  
   init(_ service: U)
+  
+  var service: U { get set }
   
   func boot(routes: RoutesBuilder) async throws
 }
 
 
 extension OAuthRouteCollection {
+  
+  func boot(routes: Vapor.RoutesBuilder) throws {
+    throw OAuthError.invalidData("router")
+  }
   
   public func boot(routes: RoutesBuilder) async throws {
     let pathString = await self.service.redirectURI.value
