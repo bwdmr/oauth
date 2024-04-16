@@ -29,24 +29,31 @@ extension OAuthRouteCollection {
     let pathString = await self.service.redirectURI.value
     
     routes.get(pathString.pathComponents) { req -> Response in
+      print("code")
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
-      
+     
+      print("token")
       let tokenURL = try await service.tokenURL(code: code)
       let _tokenURL = tokenURL.0
       let _tokenData = tokenURL.1
       let tokenURI = URI(string: _tokenURL.absoluteString)
       let tokenResponse = try await req.application.client.post(tokenURI, beforeSend: { req in
-
+        
+        print("token request")
         req.headers.add(name: "Content-Type", value: "application/x-www-form-urlencoded")
         let byteBuffer = ByteBuffer(bytes: _tokenData)
         req.body = byteBuffer
       })
       
+      print("access")
       let accessToken = try tokenResponse.content.decode(T.self)
-      
+     
+      print("head")
       guard let head = await service.head else { throw Abort(.notFound) }
       let infoURL = head.endpoint
       let infoURI = URI(string: infoURL.absoluteString)
+      
+      print("info")
       let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
         try req.content.encode(accessToken) })
       var infoToken = try infoResponse.content.decode(T.self)
@@ -71,7 +78,9 @@ extension OAuthService {
     head: String,
     router: any OAuthRouteCollection
   ) async throws -> Self {
+    print("register service")
     try await self.register(service, use, head: head)
+    print("register router")
     try app.register(collection: router)
     
     return self
@@ -171,6 +180,7 @@ public extension Application.OAuth {
     
     ///
     public func make(service: GoogleService, token: [OAuthToken], head: String, router: any OAuthRouteCollection) async throws {
+      print("make")
       try await self._oauth._application.oauth
         .services.register(app: self._oauth._application, service, token, head: head, router: router)
     }
