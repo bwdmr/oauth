@@ -7,7 +7,8 @@ import NIOConcurrencyHelpers
 public protocol OAuthHeadToken: OAuthToken, Content, Authenticatable {}
 
 
-struct OAuthRouter<HeadToken, Service>: OAuthRouteCollection where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
+struct OAuthRouter<HeadToken, Service>: OAuthRouteCollection 
+where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
   var service: Service
   var head: HeadToken
   
@@ -18,7 +19,8 @@ struct OAuthRouter<HeadToken, Service>: OAuthRouteCollection where HeadToken: OA
 }
 
 
-public protocol OAuthRouteCollection<HeadToken, Service>: RouteCollection where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
+public protocol OAuthRouteCollection<HeadToken, Service>: RouteCollection 
+where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
   associatedtype HeadToken
   associatedtype Service
   
@@ -29,6 +31,7 @@ public protocol OAuthRouteCollection<HeadToken, Service>: RouteCollection where 
   
   func boot(routes: RoutesBuilder, redirectURI: RedirectURIClaim) async throws
 }
+
 
 extension RoutesBuilder {
   public func register(collection: any OAuthRouteCollection, service: OAuthServiceable) async throws {
