@@ -7,15 +7,35 @@ import NIOConcurrencyHelpers
 public protocol OAuthHeadToken: OAuthToken, Content, Authenticatable {}
 
 
-public protocol OAuthRouteCollection<T, U>: RouteCollection where T: OAuthHeadToken, U: OAuthServiceable {
-  associatedtype T
-  associatedtype U
+struct OAuthRouter<HeadToken, Service>: OAuthRouteCollection where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
+  var service: Service
+  var head: HeadToken
   
-  init(_ service: U)
+  init(_ service: Service, head: HeadToken) {
+    self.service = service
+    self.head = head
+  }
+}
+
+
+public protocol OAuthRouteCollection<HeadToken, Service>: RouteCollection where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
+  associatedtype HeadToken
+  associatedtype Service
   
-  var service: U { get set }
+  init(_ service: Service, head: HeadToken)
   
-  func boot(routes: RoutesBuilder) async throws
+  var service: Service { get set }
+  var head: HeadToken { get set }
+  
+  func boot(routes: RoutesBuilder, redirectURI: RedirectURIClaim) async throws
+}
+
+extension RoutesBuilder {
+  public func register(collection: any OAuthRouteCollection, service: OAuthServiceable) async throws {
+    print("correct register")
+    let redirectURI = await service.redirectURI
+    try await collection.boot(routes: self, redirectURI: redirectURI)
+  }
 }
 
 
@@ -25,10 +45,10 @@ extension OAuthRouteCollection {
     throw OAuthError.invalidData("router")
   }
   
-  public func boot(routes: RoutesBuilder) async throws {
-    let pathString = await self.service.redirectURI.value
+  public func boot(routes: RoutesBuilder, redirectURI: RedirectURIClaim) async throws {
+    let path = URI(string: redirectURI.value).path
     
-    routes.get(pathString.pathComponents) { req -> Response in
+    routes.get(path.pathComponents) { req -> Response in
       let code: String = try req.query.get(at: CodeClaim.key.stringValue)
       
       let tokenURL = try await service.tokenURL(code: code)
@@ -42,14 +62,14 @@ extension OAuthRouteCollection {
         req.body = byteBuffer
       })
       
-      let accessToken = try tokenResponse.content.decode(T.self)
+      let accessToken = try tokenResponse.content.decode(HeadToken.self)
       
       guard let head = await service.head else { throw Abort(.notFound) }
       let infoURL = head.endpoint
       let infoURI = URI(string: infoURL.absoluteString)
       let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
         try req.content.encode(accessToken) })
-      var infoToken = try infoResponse.content.decode(T.self)
+      var infoToken = try infoResponse.content.decode(HeadToken.self)
       try await accessToken.mergeable(&infoToken)
       
       req.auth.login(infoToken)
@@ -64,15 +84,12 @@ extension OAuthRouteCollection {
 extension OAuthService {
   
   @discardableResult
-  func register(
-    app: Application, 
-    _ service: OAuthServiceable,
-    _ use: [OAuthToken],
-    head: String,
-    router: any OAuthRouteCollection
-  ) async throws -> Self {
+  func register<HeadToken>(app: Application, _ service: any OAuthServiceable, _ use: [OAuthToken], head: HeadToken, router: any OAuthRouteCollection)
+  async throws -> Self where HeadToken: OAuthToken {
+    print("register servier")
     try await self.register(service, use, head: head)
-    try app.register(collection: router)
+    
+    try await app.register(collection: router, service: service)
     
     return self
   }
@@ -170,7 +187,9 @@ public extension Application.OAuth {
     }
     
     ///
-    public func make(service: GoogleService, token: [OAuthToken], head: String, router: any OAuthRouteCollection) async throws {
+    public func make<HeadToken>(service: GoogleService, token: [OAuthToken], head: HeadToken) async throws where HeadToken: OAuthHeadToken  {
+      let router = OAuthRouter(service, head: head)
+      
       try await self._oauth._application.oauth
         .services.register(app: self._oauth._application, service, token, head: head, router: router)
     }
