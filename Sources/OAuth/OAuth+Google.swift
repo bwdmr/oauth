@@ -64,8 +64,11 @@ extension OAuthRouteCollection {
       
       let accessToken = try tokenResponse.content.decode(HeadToken.self)
       
-      guard let head = await service.head else { throw Abort(.notFound) }
-      let infoURL = head.endpoint
+      guard 
+        let head = await service.head,
+        let infoURL = head.endpoint
+      else { throw Abort(.notFound) }
+      
       let infoURI = URI(string: infoURL.absoluteString)
       let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
         try req.content.encode(accessToken) })
