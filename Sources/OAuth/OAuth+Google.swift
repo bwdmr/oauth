@@ -60,27 +60,27 @@ extension OAuthRouteCollection {
       let _tokenData = tokenURL.1
       let tokenURI = URI(string: _tokenURL.absoluteString)
       let tokenResponse = try await req.application.client.post(tokenURI, beforeSend: { req in
-
         req.headers.add(name: "Content-Type", value: "application/x-www-form-urlencoded")
         let byteBuffer = ByteBuffer(bytes: _tokenData)
         req.body = byteBuffer
       })
       
-      let accessToken = try tokenResponse.content.decode(HeadToken.self)
-      
-      guard 
+      let token = try tokenResponse.content.decode(HeadToken.self)
+      guard let accessToken = token.accessToken,
         let head = await service.head,
-        let infoURL = head.endpoint
-      else { throw Abort(.notFound) }
+        var infoURL = head.endpoint
+      else { throw Abort(.internalServerError) }
+      
+      let accesstokenItem = URLQueryItem(name: AccessTokenClaim.key.stringValue, value: accessToken.value)
+      infoURL.append(queryItems: [accesstokenItem])
       
       let infoURI = URI(string: infoURL.absoluteString)
-      let infoResponse = try await req.application.client.post(infoURI, beforeSend: { req in
-        try req.content.encode(accessToken) })
-      var infoToken = try infoResponse.content.decode(HeadToken.self)
-      try await accessToken.mergeable(&infoToken)
+      let infoResponse = try await req.application.client.get(infoURI)
+      var info = try infoResponse.content.decode(HeadToken.self)
+      try await token.mergeable(&info)
       
-      req.auth.login(infoToken)
       
+      req.auth.login(info)
       return Response(status: .ok)
     }
   }
@@ -93,9 +93,7 @@ extension OAuthService {
   @discardableResult
   func register<HeadToken>(app: Application, _ service: any OAuthServiceable, _ use: [OAuthToken], head: HeadToken, router: any OAuthRouteCollection)
   async throws -> Self where HeadToken: OAuthToken {
-    print("register servier")
     try await self.register(service, use, head: head)
-    
     try await app.register(collection: router, service: service)
     
     return self
