@@ -34,8 +34,8 @@ where HeadToken: OAuthHeadToken, Service: OAuthServiceable {
 
 
 extension RoutesBuilder {
-  public func register(collection: any OAuthRouteCollection, service: OAuthServiceable) async throws {
-    print("correct register")
+  public func register(collection: any OAuthRouteCollection, service: OAuthServiceable) 
+  async throws {
     let redirectURI = await service.redirectURI
     try await collection.boot(routes: self, redirectURI: redirectURI)
   }
@@ -48,7 +48,8 @@ extension OAuthRouteCollection {
     throw OAuthError.invalidData("router")
   }
   
-  public func boot(routes: RoutesBuilder, redirectURI: RedirectURIClaim) async throws {
+  public func boot(routes: RoutesBuilder, redirectURI: RedirectURIClaim) 
+  async throws {
     let path = URI(string: redirectURI.value).path
     
     routes.get(path.pathComponents) { req -> Response in
@@ -193,7 +194,9 @@ public extension Application.OAuth {
     }
     
     ///
-    public func make<HeadToken>(service: GoogleService, token: [OAuthToken], head: HeadToken) async throws where HeadToken: OAuthHeadToken  {
+    public func make<HeadToken>(service: GoogleService, token: [OAuthToken], head: HeadToken) 
+    async throws where HeadToken: OAuthHeadToken  {
+      
       let router = OAuthRouter(service, head: head)
       
       try await self._oauth._application.oauth
