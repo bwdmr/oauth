@@ -79,9 +79,8 @@ extension OAuthRouteCollection {
       var info = try infoResponse.content.decode(HeadToken.self)
       try await token.mergeable(&info)
       
-      
       req.auth.login(info)
-      return Response(status: .ok)
+      return try await info.encodeResponse(for: req)
     }
   }
 }
