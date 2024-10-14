@@ -1,7 +1,9 @@
 import OAuthKit
 import Vapor
 
-extension OAuthError: AbortError {
+
+
+extension OAuthError: @retroactive AbortError {
   public var status: HTTPResponseStatus {
     .unauthorized
   }

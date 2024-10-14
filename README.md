@@ -3,49 +3,49 @@
 
 
 ### About
-A layer between [oauth-kit](https://github.com/bwdmr/oauth-kit) and [vapor](https://github.com/vapor/vapor).
+Register the oauth service of choice. 
+OAuthToken has to conforms to Authenticatable. 
+
+Register the RouteCollection to serve the route at the redirectURI as configured in the service.
+As soon as the redirection completes and the bearer token is returned and verified, the extended 
+Access-Token will be stored within the cache. 
+
+Retrieve the Access-Token from cache at any time for custom operations. 
 
 
-
-### Usage
-1. Define your custom fields, additionally to the access token ones: 
-  - in this example it is: `email`, 
+example Token:
+  - only endpoint and scope have to be ddefined
+  - in this example it is: `email`
   - exemplatory scope is: `https://www.googleapis.com/auth/userinfo.email`,
   - and the dedicated endpoint would be: `https://www.googleapis.com/oauth2/v3/userinfo`
 
-
 ```swift
-struct EmailAccessToken: OAuthGoogleToken {
+struct EmailAccessToken: GoogleToken {
   var endpoint: URL
   
   var accessToken: AccessTokenClaim?
   
-  var email: EmailClaim?
+  var email: String?
   
   var expiresIn: ExpiresInClaim?
   
   var refreshToken: RefreshTokenClaim?
   
   var scope: ScopeClaim
-  
-  var tokenType: TokenTypeClaim?
 }
+
+let accessToken = EmailAccessToken(endpoint: emailendpointURL, scope: scopeClaim)
 ```
 
 
-2. Instantiate your service, passing your custom AccessToken along.
+example Service:
 ```swift
-let emailendpointURL = URL(string: "https://www.googleapis.com/oauth2/v3/userinfo")
-
 let authenticationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
 let tokenEndpoint = "https://oauth2.googleapis.com/token"
 let clientID = "CLIENT_ID"
 let clientSecret = "CLIENT_SECRET"
 let redirectURI = "REDIRECT_URI"
-let scopeClaim = ScopeClaim(stringLiteral: "https://www.googleapis.com/auth/userinfo.email")
-let scope = "https://www.googleapis.com/auth/userinfo.email"
-
-let accessToken = EmailAccessToken(endpoint: emailendpointURL, scope: scopeClaim)
+let scope = ScopeClaim(stringLiteral: "https://www.googleapis.com/auth/userinfo.email") 
 
 let oauthgoogle = GoogleService(
   authenticationEndpoint: authenticationEndpoint,
@@ -54,8 +54,12 @@ let oauthgoogle = GoogleService(
   clientSecret: clientSecret,
   redirectURI: redirectURI,
   scope: scope)
+```
 
-try await app.oauth.google.make(service: oauthgoogle, token: [accessToken], head: scope)
+
+example Route:
+```swift
+try await app.oauth.google.make<EmailAccessToken>(service: oauthgoogle)
 ```
 
 

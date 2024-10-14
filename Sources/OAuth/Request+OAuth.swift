@@ -4,12 +4,13 @@ import NIOConcurrencyHelpers
 
 
 
-public extension Request {
-  var oauth: OAuth {
+extension Request {
+  public var oauth: OAuth {
     .init(_request: self)
   }
   
-  struct OAuth: Sendable {
+  
+  public struct OAuth: Sendable {
     public let _request: Request
     
     
@@ -53,3 +54,5 @@ public extension Request {
     }
   }
 }
+
+

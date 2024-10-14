@@ -5,13 +5,14 @@ import NIOConcurrencyHelpers
 @_exported import OAuthKit
 
 
-public extension Application {
-  var oauth: OAuth {
+
+extension Application {
+  public var oauth: OAuth {
     .init(_application: self)
   }
   
   
-  struct OAuth: Sendable {
+  public struct OAuth: Sendable {
     public let _application: Application
     
     private struct Key: StorageKey {
