@@ -2,6 +2,8 @@ import OAuthKit
 import Vapor
 import NIOConcurrencyHelpers
 
+import Logging
+
 
 
 struct OAuthRouter<Service, Token>: OAuthRouteCollection
@@ -50,12 +52,13 @@ extension OAuthRouteCollection {
     routes: RoutesBuilder,
     redirectURI: RedirectURIClaim
   ) async throws {
+    let logger = Logger(label: "beet")
+    
     let path = URI(string: redirectURI.value).path
     let pathComponents = path.pathComponents
     
-    routes.get(pathComponents) { request -> Response in
-      guard let code = request.parameters.get(CodeClaim.key.stringValue)
-      else { throw Abort(.badRequest) }
+    routes.get(pathComponents) { request async throws -> Response in
+      let code = try request.query.get(String.self, at: "code")
       
       let tokenURL = try await service.tokenURL(code: code)
       let _tokenURL = tokenURL.0
@@ -63,13 +66,17 @@ extension OAuthRouteCollection {
       
       let tokenURI = URI(string: _tokenURL.absoluteString)
       
-      let tokenResponse = try await request.application.client.post(tokenURI, beforeSend: { request in
-        request.headers.add(
-          name: "Content-Type", value: "application/x-www-form-urlencoded")
-        let byteBuffer = ByteBuffer(bytes: _tokenData)
-        request.body = byteBuffer })
-      
+      let tokenResponse = try await request.application.client.post(tokenURI, beforeSend: {
+        request in
+        
+          request.headers.add(
+            name: "Content-Type", value: "application/x-www-form-urlencoded")
+          let byteBuffer = ByteBuffer(bytes: _tokenData)
+          request.body = byteBuffer })
+     
+      logger.log(level: .info, "response")
       let accessToken = try tokenResponse.content.decode(Token.self)
+      logger.log(level: .info, "\(accessToken)")
       let authenticator = Token.authenticator() as! OAuthTokenAuthenticator<Token>
       try await authenticator.authenticate(token: accessToken, for: request)
       return Response.init(status: .ok)

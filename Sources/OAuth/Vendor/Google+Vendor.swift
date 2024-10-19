@@ -91,7 +91,7 @@ extension Application.OAuth {
     
     
     ///
-    public func make<Token>(service: GoogleService) where Token: GoogleToken & Authenticatable {
+    public func make<Token>(service: GoogleService, tokenType: Token.Type) async throws where Token: GoogleToken & Authenticatable {
       let router = OAuthRouter<GoogleService, Token>(service)
       
       try await self._oauth._application.oauth
