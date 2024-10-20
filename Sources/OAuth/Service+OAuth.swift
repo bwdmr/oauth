@@ -7,13 +7,14 @@ import NIOConcurrencyHelpers
 extension OAuthService {
   
   @discardableResult
-  func register(
+  func register<Token>(
     app: Application,
     _ service: any OAuthServiceable,
-    router: any OAuthRouteCollection
-  ) async throws -> Self {
+    router: any OAuthRouteCollection,
+    token: Token
+  ) async throws -> Self where Token: AuthenticatableOAuthToken {
     try await self.register(service)
-    try await app.register(collection: router, service: service)
+    try await app.register(collection: router, service: service, token: token)
     
     return self
   }
