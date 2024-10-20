@@ -25,7 +25,11 @@ where Service: OAuthServiceable {
   
   var service: Service { get set }
   
-  func boot<Token>(routes: RoutesBuilder, redirectURI: RedirectURIClaim, token: Token)
+  func boot<Token>(
+    routes: RoutesBuilder,
+    redirectURI: RedirectURIClaim,
+    token: Token)
+  
   async throws where Token: AuthenticatableOAuthToken
 }
 
@@ -38,7 +42,10 @@ extension RoutesBuilder {
   ) async throws where Token: AuthenticatableOAuthToken {
     let redirectURI = await service.redirectURI
     
-    try await collection.boot(routes: self, redirectURI: redirectURI, token: token)
+    try await collection.boot(
+      routes: self,
+      redirectURI: redirectURI,
+      token: token)
   }
 }
 
@@ -67,19 +74,19 @@ extension OAuthRouteCollection {
       let _tokenData = tokenURL.1
       
       let tokenURI = URI(string: _tokenURL.absoluteString)
-     
       
-      let tokenResponse = try await request.application.client.post(tokenURI, beforeSend: {
-        request in
-        
+      let tokenResponse = try await request.application.client
+        .post(tokenURI, beforeSend: { request in
+          
           request.headers.add(
-            name: "Content-Type", value: "application/x-www-form-urlencoded")
+            name: "Content-Type",
+            value: "application/x-www-form-urlencoded")
+          
           let byteBuffer = ByteBuffer(bytes: _tokenData)
-          request.body = byteBuffer })
-      
+          request.body = byteBuffer
+        })
       
       let accessToken = try tokenResponse.content.decode(Token.self)
-      
       try await token.authenticate(
           token: accessToken,
           for: request)
